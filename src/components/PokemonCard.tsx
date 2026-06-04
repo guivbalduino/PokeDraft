@@ -17,16 +17,17 @@ export default function PokemonCard({ pokemon, loading, isSpinning }: Props) {
         Current Pokémon
       </h3>
       {loading || !pokemon ? (
-        <div className="w-full h-full bg-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 border border-slate-700">
-          <div className="w-full aspect-square bg-slate-700 rounded-xl animate-pulse-slow" />
-          <div className="h-6 w-32 bg-slate-700 rounded animate-pulse-slow" />
+        <div className="bg-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 border border-slate-700">
+          <div className="w-full aspect-square bg-slate-700/60 rounded-xl animate-pulse-slow" />
+          <div className="h-5 w-28 bg-slate-700/60 rounded animate-pulse-slow" />
+          <div className="h-3 w-20 bg-slate-700/40 rounded animate-pulse-slow" />
         </div>
       ) : (
         <div
-          className={`bg-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 border transition-all duration-300 ${
+          className={`bg-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 border transition-all duration-300 ${
             isSpinning
-              ? 'border-cyan-500/50 animate-pulse shadow-lg shadow-cyan-500/10'
-              : 'border-slate-700'
+              ? 'animate-spin-border'
+              : 'border-slate-700 hover:border-slate-600'
           }`}
         >
           <div className="relative w-full max-w-sm">
@@ -41,9 +42,9 @@ export default function PokemonCard({ pokemon, loading, isSpinning }: Props) {
           <h2 className="text-2xl font-bold text-slate-100">
             {capitalize(pokemon.name)}
           </h2>
-          <p className="text-sm text-slate-500">
-            #{String(pokemon.id).padStart(4, '0')}
-          </p>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <span>#{String(pokemon.id).padStart(4, '0')}</span>
+          </div>
         </div>
       )}
     </div>

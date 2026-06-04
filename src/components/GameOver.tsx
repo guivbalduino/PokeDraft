@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { STAT_LABELS, STAT_NAMES } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { STAT_LABELS, STAT_NAMES, STAT_MAX_VALUES } from '../types';
 import type { SlotState, StatName } from '../types';
 
 interface Props {
@@ -22,7 +22,6 @@ function capitalize(name: string) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-// Solves the 6x6 optimal assignment problem via brute-force (6! = 720 permutations)
 function getOptimalAssignment(slots: SlotState[]): { slots: AssignedSlot[]; total: number } {
   const pokemons = slots
     .map((s) => ({
@@ -99,6 +98,12 @@ export default function GameOver({
   const { slots: bestSlots, total: maxPossible } = getOptimalAssignment(slots);
   const achievedMax = total === maxPossible;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showBars, setShowBars] = useState(false);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setShowBars(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     if (!achievedMax || !canvasRef.current) return;
@@ -199,32 +204,43 @@ export default function GameOver({
                 {slots.map((slot, i) => {
                   const best = bestSlots[i];
                   const isOptimal = best && best.pokemonId === slot.pokemonId;
+                  const maxVal = STAT_MAX_VALUES[slot.statName];
+                  const pct = (slot.value / maxVal) * 100;
                   return (
                     <div
                       key={slot.statName}
-                      className={`flex items-center gap-2 rounded-xl p-2.5 border transition-all duration-300 ${
+                      className={`rounded-xl border p-2.5 transition-all duration-300 ${
                         isOptimal
-                          ? 'bg-cyan-500/10 border-cyan-500/40 shadow-sm shadow-cyan-500/5'
+                          ? 'bg-cyan-500/10 border-cyan-500/40'
                           : 'bg-slate-900/50 border-slate-700/50'
                       }`}
                     >
-                      <img
-                        src={slot.pokemonSprite}
-                        alt={slot.pokemonName}
-                        className="w-9 h-9 object-contain shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-200 truncate">{capitalize(slot.pokemonName)}</p>
-                        <p className="text-xs text-slate-500">{STAT_LABELS[slot.statName]}</p>
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={slot.pokemonSprite}
+                          alt={slot.pokemonName}
+                          className="w-8 h-8 object-contain shrink-0 rounded-full bg-slate-700/50"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-200 truncate">{capitalize(slot.pokemonName)}</p>
+                          <p className="text-[10px] text-slate-500">{STAT_LABELS[slot.statName]}</p>
+                        </div>
+                        <span className="text-base font-bold text-cyan-400 tabular-nums">{slot.value}</span>
                       </div>
-                      <span className="text-lg font-bold text-cyan-400 tabular-nums">{slot.value}</span>
+                      <div className="mt-1.5 h-1 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: showBars ? `${Math.max(pct, 4)}%` : '0%', backgroundColor: '#06b6d4', transitionDelay: `${i * 80}ms` }}
+                        />
+                      </div>
+                      <p className="text-[9px] text-slate-600 mt-0.5 tabular-nums">{Math.round(pct)}% of max</p>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* RIGHT — Best Choices (Calculated Assignment) */}
+            {/* RIGHT — Best Choices */}
             <div>
               <h3 className="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-3 text-center">
                 Best Choices
@@ -233,25 +249,36 @@ export default function GameOver({
                 {bestSlots.map((best, i) => {
                   const slot = slots[i];
                   const isOptimal = best && best.pokemonId === slot.pokemonId;
+                  const maxVal = STAT_MAX_VALUES[best.statName];
+                  const pct = (best.value / maxVal) * 100;
                   return (
                     <div
                       key={best.statName}
-                      className={`flex items-center gap-2 rounded-xl p-2.5 border transition-all duration-300 ${
+                      className={`rounded-xl border p-2.5 transition-all duration-300 ${
                         isOptimal
-                          ? 'bg-cyan-500/10 border-cyan-500/40 shadow-sm shadow-cyan-500/5'
+                          ? 'bg-cyan-500/10 border-cyan-500/40'
                           : 'bg-slate-900/50 border-slate-700/50'
                       }`}
                     >
-                      <img
-                        src={best.pokemonSprite}
-                        alt={best.pokemonName}
-                        className="w-9 h-9 object-contain shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-200 truncate">{capitalize(best.pokemonName)}</p>
-                        <p className="text-xs text-slate-500">{STAT_LABELS[best.statName]}</p>
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={best.pokemonSprite}
+                          alt={best.pokemonName}
+                          className="w-8 h-8 object-contain shrink-0 rounded-full bg-slate-700/50"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-200 truncate">{capitalize(best.pokemonName)}</p>
+                          <p className="text-[10px] text-slate-500">{STAT_LABELS[best.statName]}</p>
+                        </div>
+                        <span className="text-base font-bold text-purple-400 tabular-nums">{best.value}</span>
                       </div>
-                      <span className="text-lg font-bold text-purple-400 tabular-nums">{best.value}</span>
+                      <div className="mt-1.5 h-1 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: showBars ? `${Math.max(pct, 4)}%` : '0%', backgroundColor: '#a855f7', transitionDelay: `${i * 80}ms` }}
+                        />
+                      </div>
+                      <p className="text-[9px] text-slate-600 mt-0.5 tabular-nums">{Math.round(pct)}% of max</p>
                     </div>
                   );
                 })}

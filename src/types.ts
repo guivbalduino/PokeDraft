@@ -40,3 +40,21 @@ export const STAT_NAMES: StatName[] = [
   'special-defense',
   'speed',
 ];
+
+export const STAT_MAX_VALUES: Record<StatName, number> = {
+  hp: 255,
+  attack: 190,
+  defense: 230,
+  'special-attack': 194,
+  'special-defense': 230,
+  speed: 200,
+};
+
+export const STAT_COLORS: Record<StatName, string> = {
+  hp: 'rose',
+  attack: 'orange',
+  defense: 'amber',
+  'special-attack': 'blue',
+  'special-defense': 'emerald',
+  speed: 'violet',
+};
