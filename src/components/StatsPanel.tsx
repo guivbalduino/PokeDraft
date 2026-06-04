@@ -52,7 +52,10 @@ export default function StatsPanel({ slots, onSelect, disabled }: Props) {
               </span>
 
               {/* Main content */}
-              <div className="flex-1 min-w-0">
+              <div
+                id={`slot-target-${slot.statName}`}
+                className="flex-1 min-w-0"
+              >
                 {slot.filled ? (
                   <div className="flex items-center gap-2">
                     <img
@@ -85,12 +88,6 @@ export default function StatsPanel({ slots, onSelect, disabled }: Props) {
                     }}
                   />
                 </div>
-
-                {slot.filled && (
-                  <p className="text-[10px] text-slate-600/80 mt-0.5 tabular-nums">
-                    {Math.round(pct)}% of max
-                  </p>
-                )}
               </div>
 
               {!slot.filled && (

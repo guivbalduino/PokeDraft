@@ -8,6 +8,7 @@ import GameOver from './components/GameOver';
 const LS_KEY = 'pokedraft-highscore';
 const SPIN_COUNT = 12;
 const SPIN_MS = 60;
+const FLY_MS = 500;
 
 function createEmptySlots(): SlotState[] {
   return STAT_NAMES.map((name) => ({
@@ -57,9 +58,18 @@ export default function App() {
   const [gameOver, setGameOver] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
+  const [flyAnim, setFlyAnim] = useState<{
+    sprite: string;
+    from: { left: number; top: number; width: number; height: number };
+    to: { left: number; top: number; width: number; height: number };
+  } | null>(null);
+
   const maxIdRef = useRef(1025);
   const spinRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const genRef = useRef(0);
+  const flyRef = useRef<HTMLImageElement>(null);
+  const pendingRef = useRef<{ statName: StatName; pokemon: PokemonData } | null>(null);
+  const flyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     const saved = localStorage.getItem(LS_KEY);
@@ -80,65 +90,62 @@ export default function App() {
     return Math.floor(Math.random() * maxIdRef.current) + 1;
   }
 
-  async function loadNextPokemon() {
-    const gen = ++genRef.current;
-    clearInterval(spinRef.current);
-
-    setLoading(true);
-    setCurrentPokemon(null);
-    setIsSpinning(true);
-
-    // 1. Fetch the final Pokémon
-    const finalId = getRandomId();
-    const finalPokemon = await fetchWithRetry(finalId);
-    if (gen !== genRef.current) return;
-
-    if (!finalPokemon) {
-      setIsSpinning(false);
-      setLoading(false);
-      return;
-    }
-
-    // 2. Fetch a few spinners in parallel
-    const spinIds = Array.from({ length: SPIN_COUNT }, () => getRandomId());
-    const spinners = (await Promise.all(
-      spinIds.map((id) => fetchOne(id)),
-    )).filter(Boolean) as PokemonData[];
-    if (gen !== genRef.current) return;
-
-    setLoading(false);
-
-    // 3. Cycle through spinners, then settle on final
-    let idx = 0;
-    spinRef.current = setInterval(() => {
-      if (idx < spinners.length) {
-        setCurrentPokemon(spinners[idx]);
-        idx++;
-      } else {
-        clearInterval(spinRef.current);
-        setCurrentPokemon(finalPokemon);
-        setIsSpinning(false);
-      }
-    }, SPIN_MS);
-  }
-
+  // Apply fly animation when flyAnim changes
   useEffect(() => {
-    loadNextPokemon();
-  }, []);
+    if (!flyAnim || !flyRef.current) return;
 
-  function handleSelectSlot(statName: StatName) {
-    if (!currentPokemon || loading || isSpinning) return;
+    const el = flyRef.current;
+
+    // Set initial position at source (no transition)
+    el.style.transition = 'none';
+    el.style.left = `${flyAnim.from.left}px`;
+    el.style.top = `${flyAnim.from.top}px`;
+    el.style.width = `${flyAnim.from.width}px`;
+    el.style.height = `${flyAnim.from.height}px`;
+    el.style.opacity = '1';
+
+    // Force layout
+    el.getBoundingClientRect();
+
+    // Trigger transition to target
+    requestAnimationFrame(() => {
+      el.style.transition = `all ${FLY_MS}ms cubic-bezier(0.25, 0.25, 0.2, 1)`;
+      el.style.left = `${flyAnim.to.left}px`;
+      el.style.top = `${flyAnim.to.top}px`;
+      el.style.width = `${flyAnim.to.width}px`;
+      el.style.height = `${flyAnim.to.height}px`;
+      el.style.opacity = '0.85';
+      el.style.borderRadius = '9999px';
+    });
+
+    const timer = setTimeout(() => {
+      flyTimerRef.current = undefined;
+      setFlyAnim(null);
+      completePending();
+    }, FLY_MS + 50);
+
+    flyTimerRef.current = timer;
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flyAnim]);
+
+  function completePending() {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    pendingRef.current = null;
+
+    const { statName, pokemon } = pending;
 
     const newSlots = slots.map((slot) => {
       if (slot.statName === statName && !slot.filled) {
         return {
           ...slot,
-          pokemonName: currentPokemon.name,
-          pokemonSprite: currentPokemon.sprite,
-          value: currentPokemon.stats[statName],
+          pokemonName: pokemon.name,
+          pokemonSprite: pokemon.sprite,
+          value: pokemon.stats[statName],
           filled: true,
-          pokemonId: currentPokemon.id,
-          pokemonStats: currentPokemon.stats,
+          pokemonId: pokemon.id,
+          pokemonStats: pokemon.stats,
         };
       }
       return slot;
@@ -160,7 +167,94 @@ export default function App() {
     }
   }
 
+  async function loadNextPokemon() {
+    const gen = ++genRef.current;
+    clearInterval(spinRef.current);
+
+    setLoading(true);
+    setCurrentPokemon(null);
+    setIsSpinning(true);
+
+    const finalId = getRandomId();
+    const finalPokemon = await fetchWithRetry(finalId);
+    if (gen !== genRef.current) return;
+
+    if (!finalPokemon) {
+      setIsSpinning(false);
+      setLoading(false);
+      return;
+    }
+
+    const spinIds = Array.from({ length: SPIN_COUNT }, () => getRandomId());
+    const spinners = (await Promise.all(
+      spinIds.map((id) => fetchOne(id)),
+    )).filter(Boolean) as PokemonData[];
+    if (gen !== genRef.current) return;
+
+    setLoading(false);
+
+    let idx = 0;
+    spinRef.current = setInterval(() => {
+      if (idx < spinners.length) {
+        setCurrentPokemon(spinners[idx]);
+        idx++;
+      } else {
+        clearInterval(spinRef.current);
+        setCurrentPokemon(finalPokemon);
+        setIsSpinning(false);
+      }
+    }, SPIN_MS);
+  }
+
+  useEffect(() => {
+    loadNextPokemon();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleSelectSlot(statName: StatName) {
+    if (!currentPokemon || loading || isSpinning || flyAnim) return;
+
+    // Get source position from the big card image
+    const cardImg = document.getElementById('poke-card-img');
+    if (!cardImg) return;
+
+    const from = cardImg.getBoundingClientRect();
+
+    // Get target position from the slot
+    const slotEl = document.getElementById(`slot-target-${statName}`);
+    if (!slotEl) return;
+
+    const to = slotEl.getBoundingClientRect();
+
+    // Target is the sprite area within the slot
+    const targetRect = {
+      left: to.left + 4,
+      top: to.top + 4,
+      width: 28,
+      height: 28,
+    };
+
+    // Store pending choice
+    pendingRef.current = { statName, pokemon: currentPokemon };
+
+    // Start fly animation (the big image stays visible during animation)
+    setFlyAnim({
+      sprite: currentPokemon.sprite,
+      from: {
+        left: from.left,
+        top: from.top,
+        width: from.width,
+        height: from.height,
+      },
+      to: targetRect,
+    });
+  }
+
   function resetGame() {
+    clearTimeout(flyTimerRef.current);
+    clearInterval(spinRef.current);
+    pendingRef.current = null;
+    setFlyAnim(null);
     setSlots(createEmptySlots());
     setCurrentPokemon(null);
     setGameOver(false);
@@ -168,7 +262,7 @@ export default function App() {
     loadNextPokemon();
   }
 
-  const blockActions = loading || isSpinning || gameOver;
+  const blockActions = loading || isSpinning || gameOver || !!flyAnim;
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
@@ -197,6 +291,23 @@ export default function App() {
           highScore={highScore}
           isNewRecord={totalScore >= highScore && totalScore > 0}
           onPlayAgain={resetGame}
+        />
+      )}
+
+      {/* Flying image overlay */}
+      {flyAnim && (
+        <img
+          ref={flyRef}
+          src={flyAnim.sprite}
+          alt=""
+          className="fixed z-[100] pointer-events-none object-contain"
+          style={{
+            left: flyAnim.from.left,
+            top: flyAnim.from.top,
+            width: flyAnim.from.width,
+            height: flyAnim.from.height,
+            borderRadius: '12px',
+          }}
         />
       )}
     </div>

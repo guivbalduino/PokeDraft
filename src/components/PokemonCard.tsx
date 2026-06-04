@@ -34,6 +34,7 @@ export default function PokemonCard({ pokemon, loading, isSpinning }: Props) {
             <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-purple-500/10 rounded-xl" />
             <img
               key={pokemon.id}
+              id="poke-card-img"
               src={pokemon.sprite}
               alt={pokemon.name}
               className="w-full aspect-square object-contain relative z-10 drop-shadow-lg transition-opacity duration-75"

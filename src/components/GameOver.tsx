@@ -233,7 +233,6 @@ export default function GameOver({
                           style={{ width: showBars ? `${Math.max(pct, 4)}%` : '0%', backgroundColor: '#06b6d4', transitionDelay: `${i * 80}ms` }}
                         />
                       </div>
-                      <p className="text-[9px] text-slate-600 mt-0.5 tabular-nums">{Math.round(pct)}% of max</p>
                     </div>
                   );
                 })}
@@ -278,7 +277,6 @@ export default function GameOver({
                           style={{ width: showBars ? `${Math.max(pct, 4)}%` : '0%', backgroundColor: '#a855f7', transitionDelay: `${i * 80}ms` }}
                         />
                       </div>
-                      <p className="text-[9px] text-slate-600 mt-0.5 tabular-nums">{Math.round(pct)}% of max</p>
                     </div>
                   );
                 })}
